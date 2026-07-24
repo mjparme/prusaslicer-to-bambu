@@ -20,7 +20,7 @@ PrusaSlicer cannot send jobs to a Bambu printer directly, and BamBuddy only acce
 Clone the repo to `~/prusaslicer-to-bambu` so the default path works:
 
 ```bash
-git clone <repo-url> ~/prusaslicer-to-bambu
+git clone https://github.com/mjparme/prusaslicer-to-bambu.git ~/prusaslicer-to-bambu
 ```
 
 The configs use `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py`. The text box shows that literal string — PrusaSlicer does not expand it in the UI. On **macOS/Linux**, the shell expands `$HOME` when the script runs at export time. On **Windows**, use a full path instead (see below).
