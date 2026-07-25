@@ -62,9 +62,8 @@ If you cloned the repo somewhere other than `~/prusaslicer-to-bambu`, update the
 **Typical workflow:**
 
 1. Slice and export in PrusaSlicer (or **Export G-code** / **Send to printer** - any action that runs post-processing)
-2. Check the PrusaSlicer console for `Uploaded to BamBuddy: …`
-3. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
-4. Select the job and send it to your A1
+2. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
+3. Select the job and send it to your A1
 
 ## Additional Information
 
@@ -106,13 +105,6 @@ PrusaSlicer sets `SLIC3R_PP_OUTPUT_NAME` when invoking post-processing scripts; 
 |---------------|---------------------|
 | Upload to library | **Manage Library** |
 | Add to queue (`BAMBUDDY_ADD_TO_QUEUE=1`) | **Manage Library** + **Manage Queue** |
-
-### Requirements
-
-- **Printer:** Bambu Lab A1 (tested without AMS)
-- **Slicer:** PrusaSlicer 2.9.x (configs exported from 2.9.6)
-- **G-code flavor:** Marlin (legacy) - set automatically by the imported profiles
-- **Plate:** Textured or smooth PEI (see below)
 
 ### Textured vs smooth
 
