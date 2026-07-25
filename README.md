@@ -63,7 +63,7 @@ Verify these settings after import:
 
 If you cloned the repo somewhere other than `~/prusaslicer-to-bambu`, update the post-processing path in **Print Settings → Output Options → Post-processing scripts** to match (or symlink: `ln -s /path/to/repo ~/prusaslicer-to-bambu`). On **Windows**, use a full path - see [Post-processing script path](#post-processing-script-path).
 
-**Typical workflow:**
+# Typical workflow
 
 1. Slice, then **Export G-code** (or any export action that runs post-processing). PrusaSlicer will ask where to save the `.gcode` file. The save location you choose does not matter; you are only saving to trigger the post-processing script, which uploads the file to BamBuddy.
 2. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
