@@ -63,7 +63,7 @@ If you cloned the repo somewhere other than `~/prusaslicer-to-bambu`, update the
 
 **Typical workflow:**
 
-1. Slice and export in PrusaSlicer (or **Export G-code** / **Send to printer** - any action that runs post-processing)
+1. Slice, then **Export G-code** (or any export action that runs post-processing). PrusaSlicer will ask where to save the `.gcode` file. The save location you choose does not matter; you are only saving to trigger the post-processing script, which uploads the file to BamBuddy.
 2. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
 3. Select the job and send it to your A1
 
