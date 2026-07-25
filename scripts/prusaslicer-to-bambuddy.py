@@ -17,9 +17,18 @@ from pathlib import Path
 
 # --- config ---
 BAMBUDDY_URL = os.environ.get("BAMBUDDY_URL", "http://localhost:8000")
+BAMBUDDY_API_KEY = os.environ.get("BAMBUDDY_API_KEY", "").strip()
 ADD_TO_QUEUE = os.environ.get("BAMBUDDY_ADD_TO_QUEUE", "0") == "1"
 FOLDER_ID = os.environ.get("BAMBUDDY_FOLDER_ID")  # optional, e.g. "3"
 # --------------
+
+
+def _auth_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Build request headers, optionally including BamBuddy API key auth."""
+    headers = dict(extra or {})
+    if BAMBUDDY_API_KEY:
+        headers["X-API-Key"] = BAMBUDDY_API_KEY
+    return headers
 
 
 def derive_upload_name(gcode_path: Path) -> str:
@@ -143,7 +152,9 @@ def upload_file(content: bytes, filename: str) -> dict:
     req = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        headers=_auth_headers(
+            {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+        ),
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
@@ -155,7 +166,7 @@ def add_to_queue(file_id: int) -> dict:
     req = urllib.request.Request(
         url,
         data=json.dumps({"file_ids": [file_id]}).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_auth_headers({"Content-Type": "application/json"}),
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:

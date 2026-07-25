@@ -60,10 +60,24 @@ Environment variables (optional):
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `BAMBUDDY_URL` | `http://localhost:8000` | BamBuddy server URL |
+| `BAMBUDDY_API_KEY` | *(unset)* | API key when BamBuddy auth is enabled (see below) |
 | `BAMBUDDY_FOLDER_ID` | *(unset)* | Upload to a specific library folder, e.g. `3` |
 | `BAMBUDDY_ADD_TO_QUEUE` | `0` | Set to `1` to auto-add uploaded files to the print queue |
 
 PrusaSlicer sets `SLIC3R_PP_OUTPUT_NAME` when invoking post-processing scripts; the script uses that to derive a clean `.gcode.3mf` filename instead of PrusaSlicer's temp path.
+
+#### Authentication
+
+If BamBuddy runs with authentication disabled (common on a trusted LAN), no API key is needed.
+
+When auth is enabled, create an API key in **Settings → API Keys** and set `BAMBUDDY_API_KEY` in the environment PrusaSlicer inherits when it runs post-processing (e.g. shell profile, or a small wrapper script). The script sends it as an `X-API-Key` header on upload and queue requests.
+
+| Script action | Required API key permission |
+|---------------|---------------------------|
+| Upload to library | **Manage Library** |
+| Add to queue (`BAMBUDDY_ADD_TO_QUEUE=1`) | **Manage Library** + **Manage Queue** |
+
+Do not commit API keys to git. If a key leaks, revoke it in BamBuddy and create a new one.
 
 ### Typical workflow
 
