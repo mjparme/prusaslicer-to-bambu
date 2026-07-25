@@ -1,4 +1,4 @@
-;===== Bambu Lab A1 — FAST start (smooth PEI) ============================
+;===== Bambu Lab A1 - FAST start (smooth PEI) ============================
 ; Same as ps-a1-start-fast-textured.gcode but without G29.1 plate offset.
 ; See header comments in that file for skipped steps and when to use.
 ;===== machine: A1 =========================
@@ -41,7 +41,7 @@ G92 E0
 G1 E8 F300
 G1 E-0.5 F300
 
-;===== smooth PEI — no G29.1 offset ===========
+;===== smooth PEI - no G29.1 offset ===========
 
 ;===== ready to print =========================
 M1002 gcode_claim_action : 0

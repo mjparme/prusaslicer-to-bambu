@@ -576,7 +576,7 @@ G1 Z0.2
 M1002 gcode_claim_action : 0
 M400
 
-;===== Textured PEI Plate — lower nozzle; homing touches texture peaks =====
+;===== Textured PEI Plate - lower nozzle; homing touches texture peaks =====
 G29.1 Z-0.02 ; for Textured PEI Plate
 
 M960 S1 P0 ; turn off laser

@@ -1,4 +1,4 @@
-;===== Bambu Lab A1 — FAST start (textured PEI) =========================
+;===== Bambu Lab A1 - FAST start (textured PEI) =========================
 ; Skips: startup sound, AMS purge/wipe-shake, auto extrude cali, mech mode
 ;        check, nozzle wipe/brush/touching, G29 bed probe, extrude cali lines.
 ; Keeps: heat, G28 homing, short prime, G29.1 plate offset, runout detection.

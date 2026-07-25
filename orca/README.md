@@ -4,7 +4,7 @@ These are the **original** Bambu Studio / OrcaSlicer machine G-code scripts for 
 
 They are **not used** by the imported `config-a1-*.ini` profiles. The working profiles use the converted scripts in `prusaslicer/` (embedded inline in each `.ini`).
 
-These files are kept here for reference — to compare against the PrusaSlicer versions, trace where a command came from, or look up Orca/Bambu placeholder syntax during future conversions.
+These files are kept here for reference - to compare against the PrusaSlicer versions, trace where a command came from, or look up Orca/Bambu placeholder syntax during future conversions.
 
 | File | Orca script type |
 |------|------------------|

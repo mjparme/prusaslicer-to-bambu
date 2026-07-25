@@ -576,7 +576,7 @@ G1 Z0.2
 M1002 gcode_claim_action : 0
 M400
 
-;===== Smooth PEI — no G29.1 plate offset (Orca omits for non-textured plates) =====
+;===== Smooth PEI - no G29.1 plate offset (Orca omits for non-textured plates) =====
 
 M960 S1 P0 ; turn off laser
 M960 S2 P0 ; turn off laser

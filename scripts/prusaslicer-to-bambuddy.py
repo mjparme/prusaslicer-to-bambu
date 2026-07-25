@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""PrusaSlicer post-processing script: wrap gcode as .gcode.3mf and upload to BamBuddy."""
+"""PrusaSlicer post-processing script: wrap gcode as .gcode.3mf and upload to BamBuddy.
+
+PrusaSlicer invokes this script after export with the path to the generated ``.gcode``
+file as ``argv[1]``. The script builds a minimal Bambu-compatible ``.gcode.3mf`` zip
+and uploads it to BamBuddy's library API.
+
+Environment variables (all optional unless auth is enabled):
+
+    BAMBUDDY_URL: Base URL (default ``http://localhost:8000``).
+    BAMBUDDY_API_KEY: API key sent as ``X-API-Key`` when BamBuddy auth is on.
+    BAMBUDDY_FOLDER_ID: Target library folder ID query param.
+    BAMBUDDY_ADD_TO_QUEUE: Set to ``1`` to add the upload to the print queue.
+
+PrusaSlicer also sets ``SLIC3R_PP_OUTPUT_NAME`` with the intended export filename.
+"""
 
 from __future__ import annotations
 
@@ -15,16 +29,23 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-# --- config ---
+# --- config (read once at import; PrusaSlicer inherits its own environment) ---
 BAMBUDDY_URL = os.environ.get("BAMBUDDY_URL", "http://localhost:8000")
 BAMBUDDY_API_KEY = os.environ.get("BAMBUDDY_API_KEY", "").strip()
 ADD_TO_QUEUE = os.environ.get("BAMBUDDY_ADD_TO_QUEUE", "0") == "1"
 FOLDER_ID = os.environ.get("BAMBUDDY_FOLDER_ID")  # optional, e.g. "3"
-# --------------
+# ------------------------------------------------------------------------------
 
 
-def _auth_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Build request headers, optionally including BamBuddy API key auth."""
+def auth_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Build HTTP request headers, optionally including BamBuddy API key auth.
+
+    Args:
+        extra: Additional headers to merge in (e.g. Content-Type).
+
+    Returns:
+        Header dict. Includes ``X-API-Key`` when ``BAMBUDDY_API_KEY`` is set.
+    """
     headers = dict(extra or {})
     if BAMBUDDY_API_KEY:
         headers["X-API-Key"] = BAMBUDDY_API_KEY
@@ -32,10 +53,17 @@ def _auth_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
 
 
 def derive_upload_name(gcode_path: Path) -> str:
-    """Build a clean .gcode.3mf filename for BamBuddy.
+    """Build a clean ``.gcode.3mf`` filename for BamBuddy.
 
-    PrusaSlicer passes a temp path in argv[1] (e.g. ``.69975_0.gcode``).
+    PrusaSlicer passes a temp path in ``argv[1]`` (e.g. ``.69975_0.gcode``).
     The intended export name is in ``SLIC3R_PP_OUTPUT_NAME``.
+
+    Args:
+        gcode_path: Path PrusaSlicer passed on the command line.
+
+    Returns:
+        Filename ending in ``.gcode.3mf``, with duplicate ``.gcode`` suffixes
+        stripped from the stem.
     """
     output_name = os.environ.get("SLIC3R_PP_OUTPUT_NAME", "").strip()
     if output_name:
@@ -43,6 +71,7 @@ def derive_upload_name(gcode_path: Path) -> str:
     else:
         base = gcode_path.name
 
+    # Strip one or more trailing ".gcode" segments (e.g. "part.gcode.gcode").
     stem = base
     while stem.lower().endswith(".gcode"):
         stem = stem[: -len(".gcode")]
@@ -56,20 +85,28 @@ def derive_upload_name(gcode_path: Path) -> str:
 def extract_gcode_thumbnail(gcode_path: Path) -> bytes | None:
     """Extract the largest embedded PNG/JPEG thumbnail from PrusaSlicer gcode.
 
-    PrusaSlicer format (Printer Settings → General → Firmware → G-code thumbnails):
-      ; thumbnail begin 220x220 12345
-      ; <base64 lines>
-      ; thumbnail end
+    PrusaSlicer format (Printers → General → Firmware → G-code thumbnails)::
 
-    Use PNG (e.g. ``220x220/PNG``) — QOI thumbnails are skipped.
+        ; thumbnail begin 220x220 12345
+        ; <base64 lines>
+        ; thumbnail end
+
+    Use PNG (e.g. ``220x220/PNG``) - QOI thumbnails are skipped.
+
+    Args:
+        gcode_path: Exported gcode file to scan.
+
+    Returns:
+        Raw PNG or JPEG bytes for the widest thumbnail found, or ``None``.
     """
     try:
+        # Thumbnail blocks are always near the top of the file; 50 KB is plenty.
         with open(gcode_path, errors="ignore") as f:
             content = f.read(50000)
 
-        best = None
+        best = None  # (width, decoded_bytes)
         in_thumbnail = False
-        thumbnail_lines = []
+        thumbnail_lines: list[str] = []
         current_width = 0
 
         for line in content.split("\n"):
@@ -89,6 +126,7 @@ def extract_gcode_thumbnail(gcode_path: Path) -> bytes | None:
                         is_png = decoded.startswith(b"\x89PNG\r\n\x1a\n")
                         is_jpeg = decoded.startswith(b"\xff\xd8\xff")
                         if is_png or is_jpeg:
+                            # Prefer the largest thumbnail when multiple are embedded.
                             if best is None or current_width > best[0]:
                                 best = (current_width, decoded)
                     except (binascii.Error, ValueError):
@@ -98,18 +136,29 @@ def extract_gcode_thumbnail(gcode_path: Path) -> bytes | None:
                 continue
 
             if in_thumbnail and line.startswith(";"):
+                # Strip leading ";" and any whitespace before base64 payload.
                 data_line = line[1:].strip()
                 if data_line:
                     thumbnail_lines.append(data_line)
 
         return best[1] if best else None
     except Exception:
-        # Missing, QOI-only, or malformed thumbnails — upload without preview.
+        # Missing, QOI-only, or malformed thumbnails - upload without preview.
         return None
 
 
 def wrap_gcode_3mf(gcode_path: Path) -> tuple[bytes, str, bool]:
-    """Package plain gcode into a minimal Bambu-compatible .gcode.3mf zip."""
+    """Package plain gcode into a minimal Bambu-compatible ``.gcode.3mf`` zip.
+
+    BamBuddy expects a zip with ``Metadata/plate_1.gcode``, a minimal
+    ``Metadata/slice_info.config``, and optionally ``Metadata/plate_1.png``.
+
+    Args:
+        gcode_path: Exported gcode file to package.
+
+    Returns:
+        Tuple of ``(zip_bytes, upload_filename, has_thumbnail)``.
+    """
     gcode_bytes = gcode_path.read_bytes()
     upload_name = derive_upload_name(gcode_path)
 
@@ -138,6 +187,21 @@ def wrap_gcode_3mf(gcode_path: Path) -> tuple[bytes, str, bool]:
 
 
 def upload_file(content: bytes, filename: str) -> dict:
+    """Upload a ``.gcode.3mf`` zip to BamBuddy's library.
+
+    Uses ``POST /api/v1/library/files`` with multipart form data. Built manually
+    (no ``urllib`` multipart helper) to keep dependencies at zero.
+
+    Args:
+        content: Raw zip bytes.
+        filename: Filename sent in the ``Content-Disposition`` header.
+
+    Returns:
+        Parsed JSON response (includes ``id`` and ``filename``).
+
+    Raises:
+        urllib.error.HTTPError: On non-2xx API responses.
+    """
     boundary = "----BamBuddyUploadBoundary"
     body = (
         f"--{boundary}\r\n"
@@ -162,6 +226,17 @@ def upload_file(content: bytes, filename: str) -> dict:
 
 
 def add_to_queue(file_id: int) -> dict:
+    """Add an uploaded library file to the BamBuddy print queue.
+
+    Args:
+        file_id: Library file ID returned by :func:`upload_file`.
+
+    Returns:
+        Parsed JSON with ``added`` and ``errors`` lists.
+
+    Raises:
+        urllib.error.HTTPError: On non-2xx API responses.
+    """
     url = f"{BAMBUDDY_URL.rstrip('/')}/api/v1/library/files/add-to-queue"
     req = urllib.request.Request(
         url,
@@ -174,6 +249,11 @@ def add_to_queue(file_id: int) -> dict:
 
 
 def main() -> int:
+    """Entry point: package gcode, upload to BamBuddy, optionally queue.
+
+    Returns:
+        0 on success, 1 on usage/validation/API errors.
+    """
     if len(sys.argv) < 2:
         print("Usage: prusaslicer-to-bambuddy.py <path-to-exported.gcode>", file=sys.stderr)
         return 1
