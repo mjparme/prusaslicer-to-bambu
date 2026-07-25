@@ -216,7 +216,7 @@ def upload_file(content: bytes, filename: str) -> dict:
     req = urllib.request.Request(
         url,
         data=body,
-        headers=_auth_headers(
+        headers=auth_headers(
             {"Content-Type": f"multipart/form-data; boundary={boundary}"}
         ),
         method="POST",
@@ -241,7 +241,7 @@ def add_to_queue(file_id: int) -> dict:
     req = urllib.request.Request(
         url,
         data=json.dumps({"file_ids": [file_id]}).encode(),
-        headers=_auth_headers({"Content-Type": "application/json"}),
+        headers=auth_headers({"Content-Type": "application/json"}),
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
