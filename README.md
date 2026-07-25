@@ -39,6 +39,8 @@ Import one or more configs into PrusaSlicer (import all four if you want every p
 2. **File → Import → Import Config…** and choose one or more `config-a1-*.ini` files from this repo
 3. Pick the imported printer profile from the printer dropdown when slicing
 
+**Expected import warning:** PrusaSlicer shows an alert that the config contains a post-processing script and asks you to review it before exporting G-code. That warning is reasonable - **read `scripts/prusaslicer-to-bambuddy.py` in this repo first** (it wraps G-code for BamBuddy upload; see step 4), then click **OK** once you are satisfied with what it does.
+
 | Config file | Printer profile name | Start G-code |
 |-------------|---------------------|--------------|
 | `config-a1-textured.ini` | Bambu Lab A1 - Textured Plate | Full start (textured PEI) |
