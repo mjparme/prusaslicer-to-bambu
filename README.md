@@ -2,104 +2,40 @@
 
 PrusaSlicer printer profiles and custom G-code for printing on a **Bambu Lab A1** (single spool, no AMS). Start, end, and layer-change scripts were converted from Bambu Studio / OrcaSlicer placeholders to PrusaSlicer syntax while keeping Bambu firmware commands intact.
 
-## Requires BamBuddy
+## Getting Started
+
+### 1. Set up BamBuddy
 
 This workflow depends on a running [**BamBuddy**](https://wiki.bambuddy.cool) installation to send prints to your A1 and archive jobs. PrusaSlicer does not connect to Bambu printers over the network on its own.
 
-- **Install:** [Installation guide](https://wiki.bambuddy.cool/getting-started/installation/)
-- **Quick start:** [Getting started](https://wiki.bambuddy.cool/getting-started/) (enable Developer Mode on the printer, add the A1, insert an SD card)
+1. Install BamBuddy — [installation guide](https://wiki.bambuddy.cool/getting-started/installation/)
+2. Follow the [getting started](https://wiki.bambuddy.cool/getting-started/) steps (enable Developer Mode on the printer, add the A1, insert an SD card)
+3. Add your printer in the BamBuddy UI
 
-After BamBuddy is up, add your printer in the BamBuddy UI. Printing is handled automatically by a **post-processing script** (see below) — you slice and export as usual in PrusaSlicer, then start the job from BamBuddy.
+### 2. (Optional) Set up authentication
 
-## Sending prints to BamBuddy
+Skip this if BamBuddy runs without authentication (common on a trusted LAN).
 
-PrusaSlicer cannot send jobs to a Bambu printer directly, and BamBuddy only accepts **`.gcode.3mf`** uploads (not plain `.gcode`). A post-processing script bridges the gap.
+If auth is enabled on your BamBuddy instance:
 
-**Script:** `scripts/prusaslicer-to-bambuddy.py` in this repo (configured in the imported `.ini` files as `post_process`)
+1. In BamBuddy, go to **Settings → API Keys** and create a key with **Manage Library** (and **Manage Queue** if you plan to use `BAMBUDDY_ADD_TO_QUEUE=1`)
+2. Set `BAMBUDDY_API_KEY` in the environment PrusaSlicer inherits when it runs post-processing — e.g. in your shell profile, via `launchctl setenv` on macOS, or in a small wrapper script
 
-Clone the repo to `~/prusaslicer-to-bambu` so the default path works:
+The post-processing script sends the key as an `X-API-Key` header. Do not store API keys in imported `.ini` files or commit them to git.
+
+### 3. Clone the repo and import configs
+
+Clone to `~/prusaslicer-to-bambu` so the default post-processing path resolves:
 
 ```bash
 git clone https://github.com/mjparme/prusaslicer-to-bambu.git ~/prusaslicer-to-bambu
 ```
 
-The configs use `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py`. The text box shows that literal string — PrusaSlicer does not expand it in the UI. On **macOS/Linux**, the shell expands `$HOME` when the script runs at export time. On **Windows**, use a full path instead (see below).
+Import a config bundle into PrusaSlicer:
 
-After each slice/export, the script:
-
-1. Reads the exported `.gcode` from PrusaSlicer
-2. Wraps it in a minimal `.gcode.3mf` zip (`Metadata/plate_1.gcode` + `slice_info.config`)
-3. Extracts the embedded PNG thumbnail from the G-code comments and adds `Metadata/plate_1.png` (so BamBuddy shows a preview in the library)
-4. Uploads the package to BamBuddy via `POST /api/v1/library/files`
-5. Optionally adds the file to the BamBuddy print queue
-
-You then open BamBuddy and print from the library or queue as you would with any other job.
-
-### PrusaSlicer setup
-
-The imported configs already include:
-
-- **Printer Settings → Post-processing scripts:** `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py`
-- **Printer Settings → Firmware → G-code thumbnails:** `220x220/PNG` (required for library previews; QOI thumbnails are skipped)
-
-#### Post-processing script path
-
-| Platform | Default in configs | Notes |
-|----------|-------------------|-------|
-| macOS / Linux | `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py` | Clone repo to `~/prusaslicer-to-bambu`. `$HOME` is expanded by the shell when exporting — not by PrusaSlicer in the UI. Avoid `~`; use `$HOME` or an absolute path. |
-| Windows | *(not preset)* | PrusaSlicer runs the script directly with no shell expansion. Set a full path, e.g. `C:\Users\you\prusaslicer-to-bambu\scripts\prusaslicer-to-bambuddy.py` |
-
-If you clone the repo somewhere other than `~/prusaslicer-to-bambu` on Mac/Linux, update **Printer Settings → Post-processing scripts** (absolute path, quoted if it contains spaces) or add a symlink: `ln -s /path/to/repo ~/prusaslicer-to-bambu`.
-
-PrusaSlicer has no `user.home`-style placeholder for `post_process` — that field is not processed through the `{macro}` system used in custom G-code.
-
-### Script configuration
-
-Environment variables (optional):
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `BAMBUDDY_URL` | `http://localhost:8000` | BamBuddy server URL |
-| `BAMBUDDY_API_KEY` | *(unset)* | API key when BamBuddy auth is enabled (see below) |
-| `BAMBUDDY_FOLDER_ID` | *(unset)* | Upload to a specific library folder, e.g. `3` |
-| `BAMBUDDY_ADD_TO_QUEUE` | `0` | Set to `1` to auto-add uploaded files to the print queue |
-
-PrusaSlicer sets `SLIC3R_PP_OUTPUT_NAME` when invoking post-processing scripts; the script uses that to derive a clean `.gcode.3mf` filename instead of PrusaSlicer's temp path.
-
-#### Authentication
-
-If BamBuddy runs with authentication disabled (common on a trusted LAN), no API key is needed.
-
-When auth is enabled, create an API key in **Settings → API Keys** and set `BAMBUDDY_API_KEY` in the environment PrusaSlicer inherits when it runs post-processing (e.g. shell profile, or a small wrapper script). The script sends it as an `X-API-Key` header on upload and queue requests.
-
-| Script action | Required API key permission |
-|---------------|---------------------------|
-| Upload to library | **Manage Library** |
-| Add to queue (`BAMBUDDY_ADD_TO_QUEUE=1`) | **Manage Library** + **Manage Queue** |
-
-Do not commit API keys to git. If a key leaks, revoke it in BamBuddy and create a new one.
-
-### Typical workflow
-
-1. Slice and export in PrusaSlicer (or **Export G-code** / **Send to printer** — any action that runs post-processing)
-2. Check the PrusaSlicer console for `Uploaded to BamBuddy: …`
-3. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
-4. Select the job and send it to your A1
-
-## Requirements
-
-- **Printer:** Bambu Lab A1 (tested without AMS)
-- **Slicer:** PrusaSlicer 2.9.x (configs exported from 2.9.6)
-- **G-code flavor:** Marlin (legacy) — set automatically by the imported profiles
-- **Plate:** Textured or smooth PEI (see below)
-
-## Import the configs
-
-1. Open PrusaSlicer.
-2. **File → Import → Import Config Bundle…** and choose one of the `.ini` files in this repo, **or** drag an `.ini` onto the PrusaSlicer window.
-3. Pick the imported printer profile from the printer dropdown when slicing.
-
-### Available profiles
+1. Open PrusaSlicer
+2. **File → Import → Import Config Bundle…** and choose one of the `config-a1-*.ini` files in this repo, **or** drag an `.ini` onto the PrusaSlicer window
+3. Pick the imported printer profile from the printer dropdown when slicing
 
 | Config file | Printer profile name | Start G-code |
 |-------------|---------------------|--------------|
@@ -108,9 +44,75 @@ Do not commit API keys to git. If a key leaks, revoke it in BamBuddy and create 
 | `config-a1-textured-fast.ini` | Bambu Lab A1 - Textured Plate (Fast) | Fast start (textured PEI) |
 | `config-a1-smooth-fast.ini` | Bambu Lab A1 - Smooth Plate (Fast) | Fast start (smooth PEI) |
 
-The full and fast variants are otherwise identical — same print settings, end G-code, and layer-change G-code.
+The full and fast variants are otherwise identical — same print settings, end G-code, and layer-change G-code. Use the profile that matches your plate type (see [Textured vs smooth](#textured-vs-smooth) below).
 
-## Textured vs smooth
+### 4. Set up the post-processing script
+
+The imported configs already wire up BamBuddy upload. PrusaSlicer cannot send jobs to a Bambu printer directly, and BamBuddy only accepts **`.gcode.3mf`** uploads (not plain `.gcode`). The script `scripts/prusaslicer-to-bambuddy.py` bridges the gap.
+
+Verify these settings after import (**Printer Settings**):
+
+- **Post-processing scripts:** `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py`
+- **Firmware → G-code thumbnails:** `220x220/PNG` (required for library previews)
+
+If you cloned the repo somewhere other than `~/prusaslicer-to-bambu`, update the post-processing path to match (or symlink: `ln -s /path/to/repo ~/prusaslicer-to-bambu`). On **Windows**, use a full path — see [Post-processing script path](#post-processing-script-path).
+
+**Typical workflow:**
+
+1. Slice and export in PrusaSlicer (or **Export G-code** / **Send to printer** — any action that runs post-processing)
+2. Check the PrusaSlicer console for `Uploaded to BamBuddy: …`
+3. Open BamBuddy → **Library** (or **Queue** if `BAMBUDDY_ADD_TO_QUEUE=1`)
+4. Select the job and send it to your A1
+
+## Additional Information
+
+### How the post-processing script works
+
+After each slice/export, `scripts/prusaslicer-to-bambuddy.py`:
+
+1. Reads the exported `.gcode` from PrusaSlicer
+2. Wraps it in a minimal `.gcode.3mf` zip (`Metadata/plate_1.gcode` + `slice_info.config`)
+3. Extracts the embedded PNG thumbnail from the G-code comments and adds `Metadata/plate_1.png` (so BamBuddy shows a preview in the library)
+4. Uploads the package to BamBuddy via `POST /api/v1/library/files`
+5. Optionally adds the file to the BamBuddy print queue
+
+### Post-processing script path
+
+The text box shows `$HOME/...` literally — PrusaSlicer does not expand it in the UI. On macOS/Linux, the shell expands `$HOME` when the script runs at export time.
+
+| Platform | Default in configs | Notes |
+|----------|-------------------|-------|
+| macOS / Linux | `$HOME/prusaslicer-to-bambu/scripts/prusaslicer-to-bambuddy.py` | Clone repo to `~/prusaslicer-to-bambu`. Avoid `~`; use `$HOME` or an absolute path. |
+| Windows | *(not preset)* | PrusaSlicer runs the script directly with no shell expansion. Set a full path, e.g. `C:\Users\you\prusaslicer-to-bambu\scripts\prusaslicer-to-bambuddy.py` |
+
+PrusaSlicer has no `user.home`-style placeholder for `post_process` — that field is not processed through the `{macro}` system used in custom G-code.
+
+### Script environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `BAMBUDDY_URL` | `http://localhost:8000` | BamBuddy server URL |
+| `BAMBUDDY_API_KEY` | *(unset)* | API key when BamBuddy auth is enabled |
+| `BAMBUDDY_FOLDER_ID` | *(unset)* | Upload to a specific library folder, e.g. `3` |
+| `BAMBUDDY_ADD_TO_QUEUE` | `0` | Set to `1` to auto-add uploaded files to the print queue |
+
+PrusaSlicer sets `SLIC3R_PP_OUTPUT_NAME` when invoking post-processing scripts; the script uses that to derive a clean `.gcode.3mf` filename instead of PrusaSlicer's temp path.
+
+**API key permissions** (when auth is enabled):
+
+| Script action | Required permission |
+|---------------|---------------------|
+| Upload to library | **Manage Library** |
+| Add to queue (`BAMBUDDY_ADD_TO_QUEUE=1`) | **Manage Library** + **Manage Queue** |
+
+### Requirements
+
+- **Printer:** Bambu Lab A1 (tested without AMS)
+- **Slicer:** PrusaSlicer 2.9.x (configs exported from 2.9.6)
+- **G-code flavor:** Marlin (legacy) — set automatically by the imported profiles
+- **Plate:** Textured or smooth PEI (see below)
+
+### Textured vs smooth
 
 The only difference between the textured and smooth profiles is a single line in the **start G-code**:
 
@@ -119,7 +121,7 @@ The only difference between the textured and smooth profiles is a single line in
 
 Use the profile that matches the plate on your printer. Mixing them (e.g. smooth profile on a textured plate) will affect first-layer height and adhesion.
 
-## Fast start variant
+### Fast start variant
 
 The fast profiles swap in a shortened start sequence (`prusaslicer/ps-a1-start-fast-textured.gcode` or `ps-a1-start-fast-smooth.gcode`). This cuts several minutes off startup compared to the full Bambu-style start.
 
@@ -141,24 +143,19 @@ The fast profiles swap in a shortened start sequence (`prusaslicer/ps-a1-start-f
 
 The fast variants have been sliced successfully but are less thoroughly print-tested than the full start.
 
-## Repository layout
+### Repository layout
 
 ```
 config-a1-*.ini          PrusaSlicer config bundles (import these)
 scripts/
   prusaslicer-to-bambuddy.py   Post-processing: wrap gcode → upload to BamBuddy
-prusaslicer/             Converted G-code for PrusaSlicer
-  ps-a1-start-textured.gcode
-  ps-a1-start-smooth.gcode
-  ps-a1-start-fast-textured.gcode
-  ps-a1-start-fast-smooth.gcode
-  ps-a1-end.gcode
+prusaslicer/             Converted G-code for PrusaSlicer (reference; also embedded in .ini)
 orca/                    Original Orca/Bambu G-code (reference)
 ```
 
 To customize start G-code, edit the `.gcode` files under `prusaslicer/` and paste the contents into **Printer Settings → Custom G-code → Start G-code**, or regenerate the `.ini` files.
 
-## Notes
+### Notes
 
 - **Non-AMS only** — profiles are validated for a single spool. AMS-specific purge blocks in the full start are left as-is from the Orca source; the fast start uses a minimal non-AMS prime instead.
 - **Bed leveling** — PrusaSlicer has no send-time “bed leveling” toggle like Bambu Studio. The full start runs `G29` when the printer’s `g29_before_print_flag` is set; the fast start assumes a stored mesh via `G29.4`. Run a full start or calibrate from the printer screen (**Settings → Maintenance → Calibration → Auto Bed Leveling**) when needed.
