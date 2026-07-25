@@ -159,4 +159,4 @@ To customize start G-code, edit the `.gcode` files under `prusaslicer/` and past
 
 - **Non-AMS only** - profiles are validated for a single spool. AMS-specific purge blocks in the full start are left as-is from the Orca source; the fast start uses a minimal non-AMS prime instead.
 - **Bed leveling** - PrusaSlicer has no send-time “bed leveling” toggle like Bambu Studio. The full start runs `G29` when the printer’s `g29_before_print_flag` is set; the fast start assumes a stored mesh via `G29.4`. Run a full start or calibrate from the printer screen (**Settings → Maintenance → Calibration → Auto Bed Leveling**) when needed.
-- **Placeholder conversion** - Orca/Bambu template variables were mapped to PrusaSlicer syntax (e.g. `first_layer_print_size` → `first_layer_print_max - first_layer_print_min`). See the `bambu-orca-to-ps` skill in [common-files](https://github.com/mjparme/common-files) for the conversion reference.
+- **Placeholder conversion** - Orca/Bambu template variables were mapped to PrusaSlicer syntax (e.g. `first_layer_print_size` → `first_layer_print_max - first_layer_print_min`). 
