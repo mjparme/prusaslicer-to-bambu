@@ -81,7 +81,7 @@ After each slice/export, `scripts/prusaslicer-to-bambuddy.py`:
 
 ### Post-processing script path
 
-The text box shows `$HOME/...` literally - PrusaSlicer does not expand it in the UI. On macOS/Linux, the shell expands `$HOME` when the script runs at export time.
+The text box shows `$HOME/...` literally, PrusaSlicer does not expand it in the UI. On macOS/Linux, the shell expands `$HOME` when the script runs at export time.
 
 | Platform | Default in configs | Notes |
 |----------|-------------------|-------|
